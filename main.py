@@ -560,7 +560,17 @@ def main():
 
     whale_rows = "".join([f"<tr><td class='fw-bold text-center'>{w['ticker']}</td><td class='text-center'>{w['type']}</td><td class='text-center'>{w['summary']}</td><td class='text-start'>{w['conclusion']}</td><td class='text-center'>{w['recent_7d']}</td></tr>" for w in whale_traces])
     
-    weekly_rows = "".join([f"<tr><td class='fw-bold'>{r['ticker']}</td><td class='fw-bold text-danger'>{r['tot_score']}</td><td>{'<span class=\\"text-danger fw-bold fs-6\\">'+fmt_num(r['weekly_k'])+'</span>' if pd.notna(r['weekly_k']) and r['weekly_k']<25 else fmt_num(r['weekly_k'])} / {fmt_num(r['weekly_d'])}</td><td>{'<span class=\\"text-danger fw-bold fs-6\\">'+fmt_num(r['weekly_wr'])+'</span>' if pd.notna(r['weekly_wr']) and r['weekly_wr']>75 else fmt_num(r['weekly_wr'])}</td><td>{'<span class=\\"text-danger fw-bold fs-6\\">'+fmt_num(r['weekly_mfi'])+'</span>' if pd.notna(r['weekly_mfi']) and r['weekly_mfi']<35 else fmt_num(r['weekly_mfi'])}</td><td>Beta:{fmt_num(r['beta'])}</td></tr>" for r in results if (r['source'] == '核心池' or (pd.notna(r['weekly_k']) and r['weekly_k']<25) or (pd.notna(r['weekly_wr']) and r['weekly_wr']>75) or (pd.notna(r['weekly_mfi']) and r['weekly_mfi']<35))])
+    weekly_rows_list = []
+    for r in results:
+        if r['source'] == '核心池' or (pd.notna(r['weekly_k']) and r['weekly_k']<25) or (pd.notna(r['weekly_wr']) and r['weekly_wr']>75) or (pd.notna(r['weekly_mfi']) and r['weekly_mfi']<35):
+            k_html = f"<span class='text-danger fw-bold fs-6'>{fmt_num(r['weekly_k'])}</span>" if pd.notna(r['weekly_k']) and r['weekly_k']<25 else fmt_num(r['weekly_k'])
+            wr_html = f"<span class='text-danger fw-bold fs-6'>{fmt_num(r['weekly_wr'])}</span>" if pd.notna(r['weekly_wr']) and r['weekly_wr']>75 else fmt_num(r['weekly_wr'])
+            mfi_html = f"<span class='text-danger fw-bold fs-6'>{fmt_num(r['weekly_mfi'])}</span>" if pd.notna(r['weekly_mfi']) and r['weekly_mfi']<35 else fmt_num(r['weekly_mfi'])
+            
+            row = f"<tr><td class='fw-bold'>{r['ticker']}</td><td class='fw-bold text-danger'>{r['tot_score']}</td><td>{k_html} / {fmt_num(r['weekly_d'])}</td><td>{wr_html}</td><td>{mfi_html}</td><td>Beta:{fmt_num(r['beta'])}</td></tr>"
+            weekly_rows_list.append(row)
+            
+    weekly_rows = "".join(weekly_rows_list)
     
     all_future_turnarounds = []
     for a in GANN_ANCHORS:
