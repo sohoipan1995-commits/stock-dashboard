@@ -2,8 +2,12 @@ name: Auto Update Stock Dashboard
 
 on:
   schedule:
-    - cron: '0 * * * *' # 每小時執行一次
-  workflow_dispatch: # 允許手動點擊執行
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+# 💡 官方指定的解決方案：強制使用 Node.js 24，徹底消滅黃字警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: write
@@ -13,27 +17,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4 # 🆙 升級到 v4，解決 Node.js 警告
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # 🆙 升級到 v5，解決 Node.js 警告
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # 直接在此處強制安裝最新版，避免 requirements.txt 版本太舊
+          pip install -U yfinance pandas numpy scikit-learn plotly
 
       - name: Run Python script
         run: |
-          # 如果你的 Python 檔案不叫 main.py，請把下面這行的 main.py 改成你的真實檔名！
-          python main.py 
+          python main.py
 
       - name: Commit and push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add . # 🤖 改用全面加入，防止找不到單一檔案報錯
+          git add docs/index.html
           git commit -m "Auto-update dashboard via GitHub Actions" || echo "No changes to commit"
           git push
