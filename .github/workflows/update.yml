@@ -1,0 +1,36 @@
+name: Auto Update Stock Dashboard
+
+on:
+  schedule:
+    - cron: '0 * * * *' # 每小時的第0分執行一次
+  workflow_dispatch: # 允許你隨時手動點擊更新
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Python script
+        run: python main.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add docs/index.html
+          # 如果沒有變動就不報錯
+          git commit -m "Auto-update dashboard via GitHub Actions" || exit 0
+          git push
