@@ -293,7 +293,7 @@ def fmt_num(x, nd=1):
     return str(round(float(x), nd)) if not pd.isna(x) else 'N/A'
 
 def main():
-    # 改為相對路徑或在雲端執行時直接輸出到根目錄的 docs 資料夾供網頁讀取
+    # 輸出到 docs 資料夾供 GitHub Pages 讀取
     os.makedirs("docs", exist_ok=True) 
     top_hsi, top_ndx, top_spx, top_dji = get_dynamic_top_turnover_tickers()
     all_tickers = list(dict.fromkeys(BASE_TICKERS + top_hsi + top_ndx + top_spx + top_dji))
@@ -455,7 +455,6 @@ def main():
             is_weekly_spike = len(wdf) >= 2 and float(wdf['VR'].iloc[-1]) > 130 and res['drawdown'] < -20
 
             # ====== 權重排序調整 (Priority) ======
-            # 數字越大，排在越上面
             if is_weekly_spike and obv_divergence and res['weekly_k'] < 25 and buy_spike_count >= 1:
                 trace_type = "<span class='badge bg-danger fs-6 py-2'>💎 週線級別超級建倉 (極高勝率)</span>"
                 summary = f"週線爆量 + OBV 底背離"
@@ -466,18 +465,18 @@ def main():
                 summary = f"深跌區真實買盤 <b class='text-success'>{buy_spike_count}</b> 次"
                 obv_msg = "<br><span class='text-success'>✅ 檢測到 OBV 底背離 (吸籌鐵證)</span>" if obv_divergence else ""
                 conclusion = f"左側尋底雷達觸發！股價回撤且出現大戶試探性買盤。<br><span class='mt-1 d-block'>📅 <b>近期爆量：</b>{spike_dates_str}</span>{cost_str}{obv_msg}"
-                priority = 5 # (第一順位)
+                priority = 5
             elif res['rsi'] < 50 and low_count >= 6:
                 trace_type = "<span class='badge bg-purple fs-6 py-2'>🕵️‍♂️ 極限縮量洗盤 (窒息量)</span>"
                 summary = f"近1個月地量 <b class='text-purple'>{low_count}</b> 次"
                 obv_msg = "<br><span class='text-success'>✅ 橫盤/下跌中 OBV 抬升</span>" if obv_divergence else ""
                 conclusion = f"出現「窒息量」，拋壓枯竭。<br><span class='text-info mt-1 d-block'>📅 <b>地量日：</b>{low_dates_str}</span>{obv_msg}"
-                priority = 4 # (第二順位)
+                priority = 4
             elif res['drawdown'] >= -15 and buy_spike_count >= 1 and res['rsi'] >= 50:
                 trace_type = "<span class='badge bg-info text-dark fs-6 py-2'>🚀 強勢突破爆量 (右側追擊)</span>"
                 summary = f"強勢區大戶追買 <b class='text-success'>{buy_spike_count}</b> 次"
                 conclusion = f"股價距離前高不遠（無深幅回撤），卻依然出現大戶真金白銀追價買進。<br><span class='mt-1 d-block'>📅 <b>近期爆量：</b>{spike_dates_str}</span>{cost_str}<br><span class='text-muted'>💡 右側順勢策略：切記以大戶買入均價作為防守停損點。</span>"
-                priority = 3 # (第三順位)
+                priority = 3
             elif res['rsi'] > 65 and sell_spike_count >= 2:
                 trace_type = "<span class='badge bg-warning text-dark fs-6 py-2'>⚠️ 高位放量大跌 (派發)</span>"
                 summary = f"高位區倒貨 <b class='text-dark'>{sell_spike_count}</b> 次"
@@ -560,16 +559,15 @@ def main():
 
     whale_rows = "".join([f"<tr><td class='fw-bold text-center'>{w['ticker']}</td><td class='text-center'>{w['type']}</td><td class='text-center'>{w['summary']}</td><td class='text-start'>{w['conclusion']}</td><td class='text-center'>{w['recent_7d']}</td></tr>" for w in whale_traces])
     
+    # 【已修復】改用安全的寫法避免 f-string backslash 報錯
     weekly_rows_list = []
     for r in results:
         if r['source'] == '核心池' or (pd.notna(r['weekly_k']) and r['weekly_k']<25) or (pd.notna(r['weekly_wr']) and r['weekly_wr']>75) or (pd.notna(r['weekly_mfi']) and r['weekly_mfi']<35):
             k_html = f"<span class='text-danger fw-bold fs-6'>{fmt_num(r['weekly_k'])}</span>" if pd.notna(r['weekly_k']) and r['weekly_k']<25 else fmt_num(r['weekly_k'])
             wr_html = f"<span class='text-danger fw-bold fs-6'>{fmt_num(r['weekly_wr'])}</span>" if pd.notna(r['weekly_wr']) and r['weekly_wr']>75 else fmt_num(r['weekly_wr'])
             mfi_html = f"<span class='text-danger fw-bold fs-6'>{fmt_num(r['weekly_mfi'])}</span>" if pd.notna(r['weekly_mfi']) and r['weekly_mfi']<35 else fmt_num(r['weekly_mfi'])
-            
             row = f"<tr><td class='fw-bold'>{r['ticker']}</td><td class='fw-bold text-danger'>{r['tot_score']}</td><td>{k_html} / {fmt_num(r['weekly_d'])}</td><td>{wr_html}</td><td>{mfi_html}</td><td>Beta:{fmt_num(r['beta'])}</td></tr>"
             weekly_rows_list.append(row)
-            
     weekly_rows = "".join(weekly_rows_list)
     
     all_future_turnarounds = []
@@ -744,7 +742,6 @@ div.dataTables_wrapper div.dataTables_filter input, div.dataTables_wrapper div.d
 </script>
 </body></html>"""
 
-    # 輸出到 docs 資料夾供 GitHub Pages 讀取
     with open('docs/index.html', 'w', encoding='utf-8') as f: f.write(html)
 
 if __name__ == '__main__':
