@@ -1,0 +1,29 @@
+name: 每日自動量化選股報告
+
+on:
+  schedule:
+    # 每天香港時間晚上 16:00 自動執行 (UTC時間 10:00)
+    - cron: '0 10 * * *'  
+  workflow_dispatch: # 讓您可以隨時手動點擊按鈕執行
+
+jobs:
+  run-quant-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取得程式碼
+        uses: actions/checkout@v3
+        
+      - name: 安裝 Python 環境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: 安裝必要的套件 (yfinance, pandas 等)
+        run: |
+          pip install yfinance pandas numpy plotly scikit-learn
+          
+      - name: 執行選股與寄信腳本
+        env:
+          # 從 GitHub 保險箱讀取您的 Email 密碼
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }} 
+        run: python turnaround_monitor.py
