@@ -1,19 +1,14 @@
 name: 雲端自動量化選股更新
 
-# 設定觸發條件
 on:
-  # 允許手動點擊按鈕更新
   workflow_dispatch: 
-  
-  # 設定排程自動更新 (GitHub 伺服器使用 UTC 時間，需減 8 小時為香港時間)
   schedule:
-    - cron: '0 22 * * *'  # 香港時間 06:00
-    - cron: '0 4 * * *'   # 香港時間 12:00
-    - cron: '1 8 * * *'   # 香港時間 16:01
-    - cron: '0 12 * * *'  # 香港時間 20:00
-    - cron: '0 14 * * *'  # 香港時間 22:00
+    - cron: '0 22 * * *'  
+    - cron: '0 4 * * *'   
+    - cron: '1 8 * * *'   
+    - cron: '0 12 * * *'  
+    - cron: '0 14 * * *'  
 
-# 給予機器人覆寫檔案的權限
 permissions:
   contents: write
 
@@ -29,14 +24,19 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 3. 安裝量化套件
+      - name: 3. 安裝量化套件與防封鎖工具
+        # 新增了 curl_cffi 來突破 Yahoo 的封鎖限制
         run: |
-          pip install yfinance pandas numpy plotly scikit-learn
+          pip install yfinance pandas numpy plotly scikit-learn curl_cffi
 
-      - name: 4. 執行您的選股系統
+      - name: 4. 建立輸出資料夾
+        # 確保雲端主機有 output 資料夾，否則 Python 存檔會報錯
+        run: mkdir -p output
+
+      - name: 5. 執行您的選股系統
         run: python turnaround_monitor.py
 
-      - name: 5. 將最新生成的 HTML 報告上傳覆蓋
+      - name: 6. 將最新生成的 HTML 報告上傳覆蓋
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
