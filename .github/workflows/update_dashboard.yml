@@ -1,0 +1,45 @@
+name: 雲端自動量化選股更新
+
+# 設定觸發條件
+on:
+  # 允許手動點擊按鈕更新
+  workflow_dispatch: 
+  
+  # 設定排程自動更新 (GitHub 伺服器使用 UTC 時間，需減 8 小時為香港時間)
+  schedule:
+    - cron: '0 22 * * *'  # 香港時間 06:00
+    - cron: '0 4 * * *'   # 香港時間 12:00
+    - cron: '1 8 * * *'   # 香港時間 16:01
+    - cron: '0 12 * * *'  # 香港時間 20:00
+    - cron: '0 14 * * *'  # 香港時間 22:00
+
+# 給予機器人覆寫檔案的權限
+permissions:
+  contents: write
+
+jobs:
+  run-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 取得最新程式碼
+        uses: actions/checkout@v3
+
+      - name: 2. 建立 Python 環境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 3. 安裝量化套件
+        run: |
+          pip install yfinance pandas numpy plotly scikit-learn
+
+      - name: 4. 執行您的選股系統
+        run: python turnaround_monitor.py
+
+      - name: 5. 將最新生成的 HTML 報告上傳覆蓋
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add output/turnaround_dashboard.html
+          git commit -m "Auto-update: 最新量化選股數據" -a || exit 0
+          git push
