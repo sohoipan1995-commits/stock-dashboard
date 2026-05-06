@@ -31,21 +31,21 @@ jobs:
         run: |
           echo "PWD=$(pwd)"
           ls -al
-          echo "------ repo files ------"
-          find . -maxdepth 3 -type f | sort
+          echo "------ python files ------"
+          find . -type f | grep -E "\.py$" | sort || true
 
-      - name: 4. 安裝量化套件與防封鎖工具
+      - name: 4. 安裝套件
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas numpy plotly scikit-learn curl_cffi
+          pip install -r requirements.txt
 
       - name: 5. 建立輸出資料夾
         run: mkdir -p output
 
       - name: 6. 執行您的選股系統
         run: |
-          test -f turnaround_monitor.py && echo "turnaround_monitor.py exists" || (echo "turnaround_monitor.py NOT FOUND" && exit 1)
-          python turnaround_monitor.py
+          test -f main.py && echo "main.py exists" || (echo "main.py NOT FOUND" && exit 1)
+          python main.py
 
       - name: 7. 檢查輸出檔案
         run: |
