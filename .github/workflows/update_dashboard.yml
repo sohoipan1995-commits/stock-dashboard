@@ -1,13 +1,13 @@
 name: 雲端自動量化選股更新
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   schedule:
-    - cron: '0 22 * * *'  
-    - cron: '0 4 * * *'   
-    - cron: '1 8 * * *'   
-    - cron: '0 12 * * *'  
-    - cron: '0 14 * * *'  
+    - cron: '0 22 * * *'
+    - cron: '0 4 * * *'
+    - cron: '1 8 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 14 * * *'
 
 permissions:
   contents: write
@@ -15,29 +15,47 @@ permissions:
 jobs:
   run-and-update:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: 1. 取得最新程式碼
-        uses: actions/checkout@v4   # 【修改點】：從 v3 升級到 v4，解決 Node.js 警告
+        uses: actions/checkout@v4
 
       - name: 2. 建立 Python 環境
-        uses: actions/setup-python@v5   # 【修改點】：從 v4 升級到 v5，解決 Node.js 警告
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: 3. 安裝量化套件與防封鎖工具
+      - name: 3. 顯示目前資料夾
         run: |
+          echo "PWD=$(pwd)"
+          ls -al
+          echo "------ repo files ------"
+          find . -maxdepth 3 -type f | sort
+
+      - name: 4. 安裝量化套件與防封鎖工具
+        run: |
+          python -m pip install --upgrade pip
           pip install yfinance pandas numpy plotly scikit-learn curl_cffi
 
-      - name: 4. 建立輸出資料夾
+      - name: 5. 建立輸出資料夾
         run: mkdir -p output
 
-      - name: 5. 執行您的選股系統
-        run: python turnaround_monitor.py
+      - name: 6. 執行您的選股系統
+        run: |
+          test -f turnaround_monitor.py && echo "turnaround_monitor.py exists" || (echo "turnaround_monitor.py NOT FOUND" && exit 1)
+          python turnaround_monitor.py
 
-      - name: 6. 將最新生成的 HTML 報告上傳覆蓋
+      - name: 7. 檢查輸出檔案
+        run: |
+          ls -al output || true
+          test -f output/turnaround_dashboard.html && echo "HTML generated" || (echo "turnaround_dashboard.html NOT FOUND" && exit 1)
+
+      - name: 8. 提交更新
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add output/turnaround_dashboard.html
-          git commit -m "Auto-update: 最新量化選股數據" -a || exit 0
+          git commit -m "Auto-update: 最新量化選股數據" || exit 0
           git push
