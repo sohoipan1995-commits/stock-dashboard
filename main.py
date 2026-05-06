@@ -908,7 +908,8 @@ div.dataTables_wrapper div.dataTables_filter input, div.dataTables_wrapper div.d
 </script>
 </body></html>"""
 
-    with open('output/turnaround_dashboard.html', 'w', encoding='utf-8') as f: f.write(html)
+    with open('index.html', 'w', encoding='utf-8') as f:
+    f.write(html)
 
 if __name__ == "__main__":
     try:
