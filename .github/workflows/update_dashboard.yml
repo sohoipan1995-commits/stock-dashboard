@@ -17,20 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 1. 取得最新程式碼
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4   # 【修改點】：從 v3 升級到 v4，解決 Node.js 警告
 
       - name: 2. 建立 Python 環境
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5   # 【修改點】：從 v4 升級到 v5，解決 Node.js 警告
         with:
           python-version: '3.11'
 
       - name: 3. 安裝量化套件與防封鎖工具
-        # 新增了 curl_cffi 來突破 Yahoo 的封鎖限制
         run: |
           pip install yfinance pandas numpy plotly scikit-learn curl_cffi
 
       - name: 4. 建立輸出資料夾
-        # 確保雲端主機有 output 資料夾，否則 Python 存檔會報錯
         run: mkdir -p output
 
       - name: 5. 執行您的選股系統
