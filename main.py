@@ -583,4 +583,218 @@ def main():
             <li class='list-group-item d-flex justify-content-between align-items-center text-white bg-dark'><div><div class='fw-bold'>S&P 500 成交量比</div><div style='font-size:0.75rem; color:#94a3b8;'>{ussent['spyvolchg']['context']}</div></div><span class='badge bg-{ussent['spyvolchg']['color']} fs-6'>{ussent['spyvolchg']['val']} {ussent['spyvolchg']['status']}</span></li>
         </ul></div></div></div>
         <div class='col-md-6'><div class='card border-danger mb-3 bg-dark'><div class='card-header bg-danger text-white fw-bold'>🇭🇰 港股情緒指標 (Proxy)</div><div class='card-body'><ul class='list-group list-group-flush'>
-            <li class='list-group-item d-flex justify-content-between 
+            <li class='list-group-item d-flex justify-content-between align-items-center text-white bg-dark'><div><div class='fw-bold'>南北水動向估算</div><div style='font-size:0.75rem; color:#94a3b8;'>{hksent['southbound']['context']}</div></div><span class='badge bg-{hksent['southbound']['color']} fs-6'>{hksent['southbound']['val']} {hksent['southbound']['status']}</span></li>
+            <li class='list-group-item d-flex justify-content-between align-items-center text-white bg-dark'><div><div class='fw-bold'>恒指20日線乖離率</div><div style='font-size:0.75rem; color:#94a3b8;'>{hksent['hsidist']['context']}</div></div><span class='badge bg-{hksent['hsidist']['color']} fs-6'>{hksent['hsidist']['val']} {hksent['hsidist']['status']}</span></li>
+            <li class='list-group-item d-flex justify-content-between align-items-center text-white bg-dark'><div><div class='fw-bold'>恒指成交量比</div><div style='font-size:0.75rem; color:#94a3b8;'>{hksent['hsivolchg']['context']}</div></div><span class='badge bg-{hksent['hsivolchg']['color']} fs-6'>{hksent['hsivolchg']['val']} {hksent['hsivolchg']['status']}</span></li>
+        </ul></div></div></div>
+    </div>
+    """
+
+    sectorhtml = "".join([f"<div class='d-inline-block text-center mx-2 mb-2'><span class='badge fs-6 {'bg-success' if s['ret']>0 else 'bg-danger'}'>{s['name']} ({s['sym']})<br>{fmtnum(s['ret'])}%</span></div>" for s in sectorsperf]) or "暫無數據"
+    buysignals = [r for r in results if r.get('aibuyprob', 0) > 60]
+    buyhtml = "".join([f"<span class='badge bg-success fs-6 m-1'>{r['ticker']} ({fmtnum(r['aibuyprob'])}%)</span>" for r in buysignals]) or "<span class='text-light'>暫無高勝率標的</span>"
+    
+    volradarhtml = ""
+    for d in range(7):
+        items = [a for a in anomalies7days if a['day']==d]
+        if items:
+            volradarhtml += f"<div class='mb-2'>{'<b>今日</b>' if d==0 else f'<b>{items[0]["date"]}</b>'}: " + "".join([f"<span class='badge {'bg-success' if a.get('isgreen') else 'bg-danger' if a['type']=='放量' else 'bg-info text-dark'} m-1'>{a['ticker']} {a['type']} {fmtnum(a['ratio'])}x</span>" for a in items]) + "</div>"
+    if not volradarhtml: volradarhtml = "<span class='text-light'>近7天無異常量能</span>"
+
+    bottomc = sum(1 for w in whaletraces if '底' in w['type'] or '吸籌' in w['type'])
+    breakc = sum(1 for w in whaletraces if '突破' in w['type'])
+    washc = sum(1 for w in whaletraces if '洗盤' in w['type'])
+    dumpc = sum(1 for w in whaletraces if '派發' in w['type'] or '出貨' in w['type'])
+
+    if bottomc > breakc and dumpc < 1.5:
+        aimsg = "<div class='alert alert-success border-success text-success bg-dark fw-bold mb-3'>💡 AI 盤面綜合診斷：目前主力以【逢低吸籌/洗盤】為主，大盤處於相對安全可建倉區域。</div>"
+    elif dumpc > bottomc and breakc == 0:
+        aimsg = "<div class='alert alert-danger border-danger text-danger bg-dark fw-bold mb-3'>💡 AI 盤面綜合診斷：目前主力以【高位派發】為主，請嚴格控制倉位，切勿追高。</div>"
+    else:
+        aimsg = "<div class='alert alert-warning border-warning text-warning bg-dark fw-bold mb-3'>💡 AI 盤面綜合診斷：目前資金分歧，個股各自表現，建議依據週線指標操作。</div>"
+
+    whalerows = "".join([f"<tr><td class='fw-bold text-center'>{w['ticker']}</td><td class='text-center'>{w['type']}</td><td class='text-center'>{w['summary']}</td><td class='text-start'>{w['conclusion']}</td><td class='text-center'>{w['recent7d']}</td></tr>" for w in whaletraces])
+    
+    def whlval(val, condition):
+        if pd.isna(val): return "N/A"
+        return f"<span class='text-danger fw-bold'>{fmtnum(val)}</span>" if condition else fmtnum(val)
+
+    weeklyrows = "".join([f"<tr><td class='fw-bold'>{r['ticker']}</td><td class='fw-bold text-danger'>{r['totscore']}</td><td>{whlval(r['weeklyk'], r['weeklyk']<25)} / {fmtnum(r['weeklyd'])}</td><td>{whlval(r['weeklywr'], r['weeklywr']>75)}</td><td>{whlval(r['weeklymfi'], r['weeklymfi']<35)}</td><td>{fmtnum(r['beta'])}</td></tr>" for r in results if r['source'] == '基本池' and (pd.notna(r['weeklyk']) and r['weeklyk']<25) or (pd.notna(r['weeklywr']) and r['weeklywr']>75) or (pd.notna(r['weeklymfi']) and r['weeklymfi']<35)])
+    
+    allfutureturnarounds = []
+    for a in GANNANCHORS:
+        basedate = datetime.strptime(a['date'], "%Y-%m-%d")
+        dayspassed = (datetime.now() - basedate).days
+        futurecycles = [c for c in GANNCYCLES if c > dayspassed]
+        for nextcycle in futurecycles[:2]:
+            targetdate = basedate + timedelta(days=nextcycle)
+            daysleft = (targetdate - datetime.now()).days
+            allfutureturnarounds.append({
+                'market': a['market'], 'type': a['type'], 'desc': a['desc'],
+                'basedate': a['date'], 'targetdate': targetdate, 'daysleft': daysleft, 'cycle': nextcycle,
+                'ctype': '主要變盤' if nextcycle in [13, 21, 34, 55, 89, 144, 233] else '次要變盤'
+            })
+    allfutureturnarounds.sort(key=lambda x: x['daysleft'])
+    gannrows = ""
+    for t in allfutureturnarounds:
+        urgency = "<span class='badge bg-danger'>極近</span>" if t['daysleft'] <= 7 else "<span class='badge bg-warning text-dark'>接近</span>" if t['daysleft'] <= 15 else "<span class='badge bg-success'>安全</span>"
+        gannrows += f"<tr><td class='fw-bold text-start'>{t['market']}<br><span class='{t['type']}'>{t['type']}</span></td><td>{t['basedate']}</td><td><span class='fw-bold text-info fs-6'>{t['targetdate'].strftime('%Y-%m-%d')}</span><br><small>剩 {t['daysleft']} 天</small></td><td>{t['cycle']}天<br><small class='text-light opacity-75'>{t['ctype']}</small></td><td>{urgency}</td><td class='text-start'><small>{t['desc']}</small></td></tr>"
+
+    def hlval(val, condition, fmt="{:.1f}"):
+        if pd.isna(val): return "N/A"
+        vstr = fmt.format(val)
+        return f"<span class='text-danger fw-bold fs-6'>{vstr}</span>" if condition else vstr
+
+    tablerows = "".join([f"<tr><td class='fw-bold'>{r['ticker']}<br>{r.get('insidersignal','')}</td><td>{fmtnum(r['price'],2)} <span class='{'text-success' if r['change']>0 else 'text-danger'}'>({fmtnum(r['change'])}%)</span></td><td class='fw-bold text-danger'>{fmtnum(r['stoploss'],2)}</td><td class='text-danger fw-bold' if r['earnings']!='N/A' else ''>{r['earnings']}</td><td class='fs-5 fw-bold text-primary'>{r['totscore']}{r.get('buffettbadge','')}</td><td>{hlval(r['rsi'], r['rsi']<30)}</td><td>{hlval(r['wr'], r['wr']>80)}</td><td>{hlval(r['vr'], r['vr']<70)}</td><td class='text-danger fw-bold'>{fmtnum(r['drawdownswing'])}%</td><td>{r['swingfibstr']}</td><td class='text-danger fw-bold'>{fmtnum(r['drawdown2y'])}%</td><td>{r['macrofibstr']}</td><td>{fmtnum(r['pe'])}</td><td>{fmtnum(r['roe'])}%</td><td>{fmtnum(r.get('fcfyield'),1)}%</td></tr>" for r in results])
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh-HK">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate 量化終端</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<style>
+    body {{ background:#0f172a; color:#e2e8f0; font-family:'Segoe UI',Tahoma,sans-serif; font-size:0.9rem; }}
+    .panel {{ background:#1e293b; border-radius:10px; padding:20px; margin-bottom:20px; border:1px solid #334155; box-shadow:0 4px 6px -1px rgba(0,0,0,0.5); }}
+    .table {{ color:#e2e8f0; margin-bottom:0!important; }}
+    .table-light {{ background:#334155; color:#fff; }}
+    table.dataTable thead tr th {{ border-bottom: 2px solid #475569; color: #94a3b8; }}
+    .table-hover tbody tr:hover {{ background-color:#334155; color:#fff; box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.05); }}
+    .bg-danger {{ background-color:#ef4444!important; }} .text-danger {{ color:#ef4444!important; }}
+    .bg-success {{ background-color:#22c55e!important; }} .text-success {{ color:#22c55e!important; }}
+    .bg-warning {{ background-color:#f59e0b!important; }} .text-warning {{ color:#f59e0b!important; }}
+    .bg-purple {{ background-color:#8b5cf6!important; color:#ffffff!important; }} .text-purple {{ color:#a855f7!important; }}
+    .info-box {{ background:#334155; border-left:4px solid #3b82f6; padding:12px; margin-bottom:15px; border-radius:4px; line-height: 1.6; color:#e2e8f0; }}
+    div.dataTables_wrapper div.dataTables_filter input, div.dataTables_wrapper div.dataTables_length select {{ background-color: #0f172a; border: 1px solid #475569; color: #fff; }}
+    .page-item .page-link {{ background-color: #1e293b; border-color: #334155; color: #e2e8f0; }}
+    .page-item.active .page-link {{ background-color: #3b82f6; border-color: #3b82f6; }}
+    .page-item.disabled .page-link {{ background-color: #0f172a; border-color: #334155; color: #475569; }}
+</style>
+</head>
+<body class="p-4">
+<div class="container-fluid">
+    <h2 class="mb-2 fw-bold text-white"><span class="badge bg-primary fs-6 align-middle">Ultimate Terminal</span> 雲端自動量化選股終端</h2>
+    <div class="text-light mb-4 opacity-75">最後更新時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 掃描標的數：{len(alltickers)}</div>
+    
+    <div class="panel border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #3b82f6;">
+        <h5 class="text-primary fw-bold mb-3">🌍 全球總經與情緒掃描</h5>
+        {macrohtml}
+        {sentimenthtml}
+        <div class="mt-3 pt-3 border-top border-secondary">
+            <h6 class="fw-bold text-light mb-3">🔥 11大板塊資金流向 (近10日)</h6>
+            <div class="p-3 bg-dark rounded border border-secondary text-center">{sectorhtml}</div>
+        </div>
+    </div>
+
+    <div class="panel border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #ef4444;">
+        <h5 class="text-danger fw-bold mb-2">🚨 投資組合風險警告 (同質性過高)</h5>
+        <div class="info-box border-danger"><b>警告：</b> 以下標的近期走勢相關係數 > 0.85，若同時持有將無法有效分散風險，大跌時會一起重挫。</div>
+        <div>{(" ".join(corrwarnings)) if corrwarnings else "<span class='text-success'>✅ 目前追蹤池內的標的相關性低，風險分散良好。</span>"}</div>
+    </div>
+
+    <div class="panel border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #0dcaf0;">
+        <h5 class="text-info fw-bold mb-3">📈 大盤動態圖表</h5>
+        <div class="row mb-2">{chartshtml}</div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="panel h-100 border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #f97316;">
+                <h5 class="fw-bold mb-3" style="color:#f97316;">🤖 AI 勝率預測雷達</h5>
+                <div class="info-box border-warning">基於機器學習隨機森林算法，分析過去5年特徵。顯示未來5日上漲機率 > 60% 之標的。</div>
+                <div class="mt-2">{buyhtml}</div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="panel h-100 border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #ec4899;">
+                <h5 class="fw-bold mb-3" style="color:#ec4899;">📡 異常量能雷達 (近7日)</h5>
+                <div class="p-3 bg-dark border border-secondary rounded" style="max-height:200px; overflow-y:auto;">{volradarhtml}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel border-top-0 border-start-0 border-end-0 mt-4" style="border-bottom:3px solid #a855f7;">
+        <h5 class="text-purple fw-bold mb-3" style="color:#a855f7;">🐳 聰明資金 (Whale) 異動追蹤</h5>
+        <div class="info-box" style="border-left-color:#a855f7;">
+            <b>🧠 AI 判讀邏輯：</b> 將價格與成交量結合，追蹤機構主力的建倉與派發痕跡。<br>
+            <b>💎 史詩級異動：</b> 月內急跌超20% + 週線天量 + OBV底背離 (極罕見長線買點)。<br>
+            <b>🔥 主力吸籌：</b> 波段跌幅>15%後，底部連續爆量收紅，且OBV未破底。<br>
+            <b>💰 資金成本：</b> VWAP 顯示近22日內主力爆量建倉/派發的平均成本價，具強大支撐/壓力效應。
+        </div>
+        {aimsg}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle interactive-dt">
+                <thead class="table-light"><tr><th>代號</th><th>異動型態</th><th>AI 綜合判讀</th><th>操作建議</th><th>近期異動軌跡</th></tr></thead>
+                <tbody>{whalerows}</tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #22c55e;">
+        <h5 class="text-success fw-bold mb-3">📅 長線週線級別 (左側黃金坑)</h5>
+        <div class="info-box border-success">
+            <b>長線大底特徵：</b> 以下標的符合 <span class="text-danger fw-bold">週線級別超賣</span>，屬於數個月才出現一次的長線左側建倉點。<br>
+            <b>條件：</b> 週 KD &lt; 25 <b class="text-warning">或</b> 週 WR &gt; 75 <b class="text-warning">或</b> 週 MFI &lt; 35。
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center interactive-dt">
+                <thead><tr><th class="text-start">代號</th><th>系統總分</th><th>週KD &lt; 25</th><th>週WR &gt; 75</th><th>週MFI &lt; 35</th><th>Beta係數</th></tr></thead>
+                <tbody>{weeklyrows}</tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #eab308;">
+        <h5 class="fw-bold mb-3" style="color:#eab308;">⏳ 江恩時間週期 (Gann Cycles) 變盤倒數</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center interactive-dt">
+                <thead><tr><th class="text-start">基準錨點</th><th>發生日期</th><th>預測變盤日</th><th>對應江恩數列</th><th>迫近程度</th><th>歷史事件說明</th></tr></thead>
+                <tbody>{gannrows}</tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel border-top-0 border-start-0 border-end-0" style="border-bottom:3px solid #0ea5e9;">
+        <h5 class="fw-bold mb-3" style="color:#0ea5e9;">📋 核心量化決策矩陣 (全市場)</h5>
+        <div class="info-box border-info">
+            <b>停損價設定：</b> 現價減去 2倍的 14日平均真實波幅 (ATR)，避免被日常震盪洗盤出場。<br>
+            <b>波段回撤：</b> <b class="text-warning">波段</b> 指近120天內的最高點回撤幅度；<b class="text-warning">長線</b> 指近2年最高點回撤幅度。<br>
+            <b class="text-warning">斐波那契回撤 (黃金分割)：</b><br>
+            提供波段與兩年級別的回撤位。當回撤位剛好與 50MA 重合時會顯示標籤，這是極強的技術共振支撐。<br>
+            <b>巴菲特價值護城河標籤：</b><br>
+            當個股滿足 <b class="text-warning">ROE>15%</b>、<b class="text-warning">PE<25</b>、<b class="text-warning">負債比<0.5</b>、<b class="text-warning">FCF Yield>4%</b>、<b class="text-warning">營業利潤率>15%</b> 時，會獲得價值投資標籤。<br>
+            <b>技術面極端值 (紅字提醒)：</b> <b class="text-danger">RSI</b> &lt; 30、<b class="text-danger">WR</b> &gt; 80、<b class="text-danger">VR</b> &lt; 70。
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle text-center interactive-dt" style="white-space:nowrap;">
+                <thead><tr><th class="text-start">代號</th><th>現價/漲跌</th><th class="bg-danger text-white">ATR停損價</th><th class="bg-warning text-dark">財報日</th><th class="bg-primary text-white">總分</th><th>RSI</th><th>WR</th><th>VR</th><th>波段回撤</th><th>波段黃金分割</th><th>長線回撤</th><th>長線黃金分割</th><th>PE</th><th>ROE</th><th>FCF殖利率</th></tr></thead>
+                <tbody>{tablerows}</tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- DataTables Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document.ready(function() {{
+        $('.interactive-dt').DataTable({{
+            "pageLength": 25, "order": [],
+            "language": {{ "search": "搜尋標的:", "lengthMenu": "每頁顯示 _MENU_ 筆", "info": "顯示 _START_ 到 _END_ 筆，共 _TOTAL_ 筆", "infoEmpty": "顯示 0 到 0 筆，共 0 筆", "zeroRecords": "找不到符合的標的", "paginate": {{ "next": "下一頁", "previous": "上一頁" }} }}
+        }});
+    }});
+</script>
+</body></html>"""
+    with open('docs/index.html', 'w', encoding='utf-8') as f:
+        f.write(html)
+
+if __name__ == "__main__":
+    try:
+        print(f"--- 開始更新: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+        main()
+        print("更新完成！")
+    except Exception as e:
+        print(f"執行時發生錯誤: {e}")
+        raise
